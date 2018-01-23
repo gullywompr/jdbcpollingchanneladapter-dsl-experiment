@@ -1,13 +1,18 @@
 package com.example.jdbcpollingchanneladapterdemo;
 
+
+import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.contains;
+
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import javax.sql.DataSource;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -29,6 +34,7 @@ import org.springframework.messaging.PollableChannel;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
+import org.springframework.test.context.jdbc.SqlConfig;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
@@ -52,9 +58,11 @@ public class JdbcpollingchanneladapterdemoTests {
 
   @Test
   @Sql(executionPhase = ExecutionPhase.BEFORE_TEST_METHOD,
-      statements = "Create Table DEMO (CODE VARCHAR(5));")
+      statements = "Create Table DEMO (CODE VARCHAR(5));",
+      config = @SqlConfig(transactionMode = SqlConfig.TransactionMode.ISOLATED))
   @Sql(executionPhase = ExecutionPhase.BEFORE_TEST_METHOD,
-      statements = "Insert into DEMO (CODE) VALUES ('12345');")
+      statements = "Insert into DEMO (CODE) VALUES ('12345');",
+      config = @SqlConfig(transactionMode = SqlConfig.TransactionMode.ISOLATED))
   public void Should_HaveMessageOnTheQueue_When_UnsentDemosIsInTheDatabase() {
 
     this.genericFlowContext.registration(new GenericFlowAdapter()).register();
@@ -67,11 +75,9 @@ public class JdbcpollingchanneladapterdemoTests {
     PollableChannel jdbcPollingChannel = this.beanFactory.getBean("JdbcPollingFlowAdapterOutput",
         PollableChannel.class);
 
-    // works OK
     assertThat(genericChannel.receive(5000).getPayload(), equalTo("15317"));
 
-    // currently giving null pointer exception
-    assertThat(jdbcPollingChannel.receive(5000).getPayload(), equalTo("15317"));
+    assertTrue(jdbcPollingChannel.receive(5000).getPayload().toString().contains("12345"));
   }
 
   private static class GenericFlowAdapter extends IntegrationFlowAdapter {
